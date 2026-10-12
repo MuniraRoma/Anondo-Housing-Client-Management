@@ -28,6 +28,19 @@ function AdminDashboard({ token, onLogout }) {
   const [ceLoading, setCeLoading] = useState(false)
   const [ceShowPass, setCeShowPass] = useState(false)
 
+  // ---------- Backend URL & Image Helper ----------
+  const BACKEND_URL = 'https://anondo-housing-backend12.onrender.com'
+
+  const getImageUrl = (photoUrl) => {
+    if (!photoUrl) return ''
+
+    if (photoUrl.startsWith('http://') || photoUrl.startsWith('https://')) {
+      return photoUrl
+    }
+
+    return `${BACKEND_URL}${photoUrl.startsWith('/') ? '' : '/'}${photoUrl}`
+  }
+
   useEffect(() => {
     fetchClients()
   }, [])
@@ -162,7 +175,7 @@ function AdminDashboard({ token, onLogout }) {
       c.projectName,
       c.visitDate || '',
       c.clientStatus || '',
-      c.photoUrl ? `http://localhost:5000${c.photoUrl}` : '',
+      c.photoUrl ? getImageUrl(c.photoUrl) : '',
       c.created_at || '',
     ])
 
@@ -185,22 +198,37 @@ function AdminDashboard({ token, onLogout }) {
   // ---------- Single Image Download ----------
   const downloadImage = async (photoUrl, clientName) => {
     try {
-      const fullUrl = photoUrl.startsWith('http')
-        ? photoUrl
-        : `http://localhost:5000${photoUrl}`
+      const fullUrl = getImageUrl(photoUrl)
+
       const response = await fetch(fullUrl)
+
+      if (!response.ok) {
+        throw new Error(`Image request failed: ${response.status}`)
+      }
+
       const blob = await response.blob()
+
+      if (!blob.type.startsWith('image/')) {
+        throw new Error('The URL did not return an image')
+      }
+
       const url = URL.createObjectURL(blob)
       const link = document.createElement('a')
-      const ext = photoUrl.split('.').pop() || 'jpg'
+
+      const pathname = new URL(fullUrl).pathname
+      const ext = pathname.split('.').pop() || 'jpg'
+
       link.href = url
       link.download = `${clientName || 'client'}_${Date.now()}.${ext}`
+
       document.body.appendChild(link)
       link.click()
-      document.body.removeChild(link)
-      URL.revokeObjectURL(url)
+      link.remove()
+
+      setTimeout(() => URL.revokeObjectURL(url), 1000)
     } catch (err) {
-      alert('ছবি download করা যায়নি')
+      console.error('Image download failed:', err)
+      alert('ছবি download করা যায়নি। Backend URL ও image file পরীক্ষা করুন।')
     }
   }
 
@@ -322,16 +350,17 @@ function AdminDashboard({ token, onLogout }) {
                       <td>
                         {c.photoUrl ? (
                           <img
-                            src={c.photoUrl.startsWith('http') ? c.photoUrl : `http://localhost:5000${c.photoUrl}`}
+                            src={getImageUrl(c.photoUrl)}
                             alt={c.clientName}
                             width="55"
                             height="55"
-                            style={{ borderRadius: '6px', objectFit: 'cover', cursor: 'pointer' }}
+                            style={{
+                              borderRadius: '6px',
+                              objectFit: 'cover',
+                              cursor: 'pointer'
+                            }}
                             onClick={() =>
-                              window.open(
-                                c.photoUrl.startsWith('http') ? c.photoUrl : `http://localhost:5000${c.photoUrl}`,
-                                '_blank'
-                              )
+                              window.open(getImageUrl(c.photoUrl), '_blank', 'noopener,noreferrer')
                             }
                           />
                         ) : '—'}
