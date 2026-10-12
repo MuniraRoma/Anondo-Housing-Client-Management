@@ -58,6 +58,30 @@ function AdminDashboard({ token, onLogout }) {
     }
   }
 
+  // ---------- Delete Client ----------
+  const handleDeleteClient = async (client) => {
+    const confirmed = window.confirm(
+      `আপনি কি "${client.clientName}"-এর তথ্য delete করতে চান? এই কাজটি ফিরিয়ে নেওয়া যাবে না।`
+    )
+
+    if (!confirmed) return
+
+    try {
+      await api.delete(`/clients/${client.id}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+
+      setClients((prev) => prev.filter((c) => c.id !== client.id))
+      alert('Client-এর তথ্য সফলভাবে delete হয়েছে।')
+    } catch (err) {
+      console.error('Delete client failed:', err)
+      alert(
+        err.response?.data?.message ||
+          'Client delete করা যায়নি। Backend API পরীক্ষা করুন।'
+      )
+    }
+  }
+
   // ---------- Change Password handler ----------
   const handleChangePassword = async (e) => {
     e.preventDefault()
@@ -377,14 +401,31 @@ function AdminDashboard({ token, onLogout }) {
                         ) : '—'}
                       </td>
                       <td>
-                        {c.photoUrl && (
+                        <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                          {c.photoUrl && (
+                            <button
+                              style={{
+                                padding: '6px 10px',
+                                fontSize: '12px',
+                                background: '#0891b2',
+                              }}
+                              onClick={() => downloadImage(c.photoUrl, c.clientName)}
+                            >
+                              ⬇ Image
+                            </button>
+                          )}
+
                           <button
-                            style={{ padding: '6px 10px', fontSize: '12px', background: '#0891b2' }}
-                            onClick={() => downloadImage(c.photoUrl, c.clientName)}
+                            style={{
+                              padding: '6px 10px',
+                              fontSize: '12px',
+                              background: '#dc2626',
+                            }}
+                            onClick={() => handleDeleteClient(c)}
                           >
-                            ⬇ Image
+                            🗑️ Delete
                           </button>
-                        )}
+                        </div>
                       </td>
                     </tr>
                   ))
