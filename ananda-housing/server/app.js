@@ -26,8 +26,8 @@ app.get('/', (req, res) => res.json({ message: 'Anondo Housing API চালু 
 
 const PORT = process.env.PORT || 5000
 
-app.listen(PORT, async () => {
-  console.log(`🚀 Server চালু: http://localhost:${PORT}`)
+app.listen(PORT, '0.0.0.0', async () => {
+  console.log(`🚀 Server চালু হয়েছে পোর্ট ${PORT}-এ`)
   try {
     await pool.query('SELECT 1')
     console.log('✅ MySQL connection সফল')
