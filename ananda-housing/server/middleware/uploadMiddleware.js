@@ -1,13 +1,25 @@
+// server/middleware/uploadMiddleware.js
 const multer = require('multer')
-const path = require('path')
+const { CloudinaryStorage } = require('multer-storage-cloudinary')
+const cloudinary = require('../config/cloudinary')
 
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, path.join(__dirname, '..', 'uploads'))
-  },
-  filename: (req, file, cb) => {
-    const uniqueName = Date.now() + '-' + Math.round(Math.random() * 1e9)
-    cb(null, uniqueName + path.extname(file.originalname))
+const storage = new CloudinaryStorage({
+  cloudinary: cloudinary,
+  params: async (req, file) => {
+    // unique public_id (filename without extension)
+    const uniqueName =
+      'client_' + Date.now() + '_' + Math.round(Math.random() * 1e9)
+
+    return {
+      folder: 'anondo-housing/clients',
+      allowed_formats: ['jpg', 'jpeg', 'png', 'webp'],
+      public_id: uniqueName,
+      // বড় ছবি auto resize + compress
+      transformation: [
+        { width: 1200, height: 1200, crop: 'limit' },
+        { quality: 'auto:good' },
+      ],
+    }
   },
 })
 
@@ -23,5 +35,5 @@ const fileFilter = (req, file, cb) => {
 module.exports = multer({
   storage,
   fileFilter,
-  limits: { fileSize: 100 * 1024 * 1024 }, // 100MB
+  limits: { fileSize: 100 * 1024 * 1024 }, // 100MB (Cloudinary-তে auto compress হবে)
 })

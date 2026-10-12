@@ -1,3 +1,4 @@
+// server/controllers/clientController.js
 const pool = require('../config/db')
 
 exports.createClient = async (req, res) => {
@@ -28,7 +29,8 @@ exports.createClient = async (req, res) => {
       return res.status(400).json({ message: 'Client photo দিন' })
     }
 
-    const photoUrl = `/uploads/${req.file.filename}`
+    // ✅ Cloudinary full URL: https://res.cloudinary.com/.../client_xxx.jpg
+    const photoUrl = req.file.path
 
     const [result] = await pool.query(
       `INSERT INTO clients 
