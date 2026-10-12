@@ -3,8 +3,6 @@ const pool = require('../config/db')
 const cloudinary = require('cloudinary').v2
 
 // ---------- Cloudinary config ----------
-// ⚠️ যদি uploadMiddleware.js-এ আগেই config করা থাকে,
-// তাহলে নিচের block টি মুছে দিতে পারেন (দুইবার config করলে সমস্যা নেই)।
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
   api_key: process.env.CLOUDINARY_API_KEY,
@@ -12,8 +10,6 @@ cloudinary.config({
 })
 
 // ---------- Helper: Cloudinary public_id বের করা ----------
-// Cloudinary URL: https://res.cloudinary.com/<cloud>/image/upload/v1234567/ananda_housing/clients/abc123.jpg
-// public_id হবে: ananda_housing/clients/abc123
 const extractPublicId = (url) => {
   if (!url || !url.includes('res.cloudinary.com')) return null
 
@@ -21,18 +17,13 @@ const extractPublicId = (url) => {
     const parts = url.split('/upload/')
     if (parts.length < 2) return null
 
-    // parts[1] = "v1234567/ananda_housing/clients/abc123.jpg"
     let afterUpload = parts[1]
-
-    // version part (v1234567/) বাদ দিন
     afterUpload = afterUpload.replace(/^v\d+\//, '')
-
-    // extension বাদ দিন
     const publicId = afterUpload.replace(/\.[^/.]+$/, '')
 
     return publicId
   } catch (err) {
-    console.error('extractPublicId error:', err)
+    console.error('extractPublicId error:', err.message)
     return null
   }
 }
@@ -66,7 +57,6 @@ exports.createClient = async (req, res) => {
       return res.status(400).json({ message: 'Client photo দিন' })
     }
 
-    // ✅ Cloudinary full URL: https://res.cloudinary.com/.../client_xxx.jpg
     const photoUrl = req.file.path
 
     const [result] = await pool.query(
@@ -100,8 +90,19 @@ exports.createClient = async (req, res) => {
       },
     })
   } catch (err) {
-    console.error('createClient error:', err)
-    res.status(500).json({ message: 'Server error' })
+    // ✅ সঠিক error logging
+    console.error('=== createClient error ===')
+    console.error('Message:', err.message)
+    console.error('Code:', err.code)
+    console.error('SQL Message:', err.sqlMessage)
+    console.error('Stack:', err.stack)
+
+    res.status(500).json({
+      message: 'Server error',
+      detail: err.message,
+      code: err.code || null,
+      sqlMessage: err.sqlMessage || null,
+    })
   }
 }
 
@@ -113,8 +114,14 @@ exports.getClients = async (req, res) => {
     )
     res.json(rows)
   } catch (err) {
-    console.error('getClients error:', err)
-    res.status(500).json({ message: 'Server error' })
+    console.error('=== getClients error ===')
+    console.error('Message:', err.message)
+    console.error('SQL Message:', err.sqlMessage)
+    res.status(500).json({
+      message: 'Server error',
+      detail: err.message,
+      sqlMessage: err.sqlMessage || null,
+    })
   }
 }
 
@@ -123,7 +130,6 @@ exports.deleteClient = async (req, res) => {
   try {
     const { id } = req.params
 
-    // 1️⃣ Client আছে কিনা চেক করুন
     const [rows] = await pool.query('SELECT * FROM clients WHERE id = ?', [id])
 
     if (rows.length === 0) {
@@ -132,7 +138,6 @@ exports.deleteClient = async (req, res) => {
 
     const client = rows[0]
 
-    // 2️⃣ Cloudinary থেকে photo delete করুন (যদি photoUrl থাকে)
     if (client.photoUrl) {
       const publicId = extractPublicId(client.photoUrl)
 
@@ -141,7 +146,6 @@ exports.deleteClient = async (req, res) => {
           await cloudinary.uploader.destroy(publicId)
           console.log('✅ Cloudinary image deleted:', publicId)
         } catch (cloudErr) {
-          // Photo delete fail হলেও client delete হবে
           console.error('Cloudinary delete failed:', cloudErr.message)
         }
       } else {
@@ -149,12 +153,17 @@ exports.deleteClient = async (req, res) => {
       }
     }
 
-    // 3️⃣ Database থেকে client delete করুন
     await pool.query('DELETE FROM clients WHERE id = ?', [id])
 
     res.json({ message: '✅ Client সফলভাবে delete হয়েছে।' })
   } catch (err) {
-    console.error('deleteClient error:', err)
-    res.status(500).json({ message: 'Server error — client delete করা যায়নি।' })
+    console.error('=== deleteClient error ===')
+    console.error('Message:', err.message)
+    console.error('SQL Message:', err.sqlMessage)
+    res.status(500).json({
+      message: 'Server error — client delete করা যায়নি।',
+      detail: err.message,
+      sqlMessage: err.sqlMessage || null,
+    })
   }
 }
